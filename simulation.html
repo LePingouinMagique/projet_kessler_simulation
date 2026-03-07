@@ -762,7 +762,7 @@ sCv.addEventListener('wheel',e=>{
   e.preventDefault();
   const f=e.deltaY>0?.88:1.14;
   const wb=s2w(e.offsetX,e.offsetY);
-  view.zoom=Math.max(.18,Math.min(22,view.zoom*f));
+  view.zoom=Math.max(.18,Math.min(100,view.zoom*f));
   const wa=s2w(e.offsetX,e.offsetY);
   view.x+=wb.x-wa.x; view.y+=wb.y-wa.y;
 },{passive:false});
