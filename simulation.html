@@ -1,0 +1,794 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<title>simulation kessler - v3</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg0:#111111;--bg1:#181818;--bg2:#222222;
+  --border:#2e2e2e;--border2:#252525;
+  --txt:#cccccc;--txt2:#888888;--txt3:#555555;
+  --accent:#4488cc;--green:#3a9e5c;--orange:#b06820;--red:#aa2a1a;--yellow:#9a8820;
+  --mono:'Courier New',Courier,monospace;--sans:Arial,Helvetica,sans-serif;
+}
+body{background:var(--bg0);font-family:var(--mono);color:var(--txt);width:100vw;height:100vh;overflow:hidden;user-select:none}
+
+/* ── MENU ── */
+#screen-menu{position:fixed;inset:0;background:var(--bg0);display:flex;z-index:200}
+.menu-sidebar{width:300px;min-width:300px;background:var(--bg1);border-right:2px solid var(--border);display:flex;flex-direction:column;overflow-y:auto}
+.menu-logo{padding:22px 18px 16px;border-bottom:2px solid var(--border)}
+.menu-logo .prog{font-size:.7rem;color:var(--txt3);margin-bottom:6px}
+.menu-logo h1{font-family:var(--sans);font-size:1.15rem;font-weight:bold;color:var(--txt);line-height:1.3}
+.menu-logo .ver{font-size:.62rem;color:var(--txt3);margin-top:4px}
+.msec{border-bottom:1px solid var(--border2);padding:12px 18px}
+.msec-t{font-size:.65rem;color:var(--txt3);margin-bottom:10px;font-family:var(--mono)}
+.srow{margin-bottom:12px}.srow:last-child{margin-bottom:0}
+.shead{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:5px}
+.slabel{font-size:.7rem;color:var(--txt2)}.sval{font-size:.75rem;color:var(--txt);font-weight:bold}
+.sunit{font-size:.6rem;color:var(--txt3);margin-left:2px}
+input[type=range]{-webkit-appearance:none;width:100%;height:3px;background:var(--bg2);border-radius:0;outline:none;cursor:pointer}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;height:13px;border-radius:0;background:var(--txt2);cursor:pointer}
+.pgrid{display:grid;grid-template-columns:1fr 1fr;gap:5px}
+.pbtn{background:var(--bg0);border:1px solid var(--border);color:var(--txt3);font-family:var(--mono);font-size:.65rem;padding:8px 6px;border-radius:0;cursor:pointer;text-align:center;transition:none;line-height:1.4}
+.pbtn:hover{border-color:var(--txt2);color:var(--txt2)}
+.pbtn.active{border-color:var(--txt);color:var(--txt);background:var(--bg2)}
+.pbtn span{display:block}.pbtn .pn{font-weight:bold}.pbtn .pd{color:var(--txt3);font-size:.55rem;margin-top:2px}
+.togrow{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}.togrow:last-child{margin-bottom:0}
+.toglabel{font-size:.68rem;color:var(--txt2)}
+.tog{position:relative;width:32px;height:16px}
+.tog input{opacity:0;width:0;height:0}
+.tsl{position:absolute;inset:0;border-radius:0;background:var(--bg0);border:1px solid var(--border);cursor:pointer}
+.tsl::after{content:'';position:absolute;top:2px;left:2px;width:10px;height:10px;border-radius:0;background:var(--txt3);transition:transform .15s}
+.tog input:checked+.tsl{background:var(--bg2);border-color:var(--txt2)}
+.tog input:checked+.tsl::after{transform:translateX(16px);background:var(--txt)}
+.mspacer{flex:1}
+.launch-area{padding:16px 18px;border-top:2px solid var(--border)}
+.lbtn{width:100%;padding:10px;background:var(--bg0);border:2px solid var(--txt2);color:var(--txt);font-family:var(--mono);font-size:.75rem;font-weight:bold;border-radius:0;cursor:pointer}
+.lbtn:hover{background:var(--bg2)}
+.lsub{font-size:.55rem;color:var(--txt3);margin-top:6px;font-family:var(--mono)}
+
+/* preview */
+.menu-preview{flex:1;display:flex;flex-direction:column;background:var(--bg0)}
+.pvhdr{padding:12px 18px;border-bottom:1px solid var(--border2);display:flex;justify-content:space-between;align-items:center}
+.pvt{font-size:.55rem;letter-spacing:.2em;color:var(--txt3);text-transform:uppercase}
+.pvs{font-size:.58rem;color:var(--yellow);letter-spacing:.08em}
+#previewCanvas{flex:1;display:block}
+.pvleg{padding:9px 18px;border-top:1px solid var(--border2);display:flex;gap:20px;flex-wrap:wrap}
+.legit{display:flex;align-items:center;gap:6px;font-size:.58rem;color:var(--txt2)}
+.legdot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+
+/* ── SIM ── */
+#screen-sim{display:none;position:fixed;inset:0;flex-direction:column}
+#screen-sim.active{display:flex}
+.topbar{height:44px;min-height:44px;background:var(--bg1);border-bottom:2px solid var(--border);display:flex;align-items:center;padding:0 16px;gap:0;font-size:.65rem}
+.tbrand{font-size:.68rem;font-weight:bold;color:var(--txt);padding-right:16px;border-right:1px solid var(--border);margin-right:14px}
+.tstat{display:flex;flex-direction:column;gap:1px;padding:0 13px;border-right:1px solid var(--border2);min-width:76px}
+.tslbl{font-size:.52rem;color:var(--txt3);text-transform:uppercase}
+.tsval{font-size:.78rem;font-weight:bold;color:var(--txt)}
+.tsval.green{color:var(--green)}.tsval.orange{color:var(--orange)}.tsval.red{color:var(--red)}.tsval.yellow{color:var(--yellow)}
+.tspacer{flex:1}
+.tbctrl{display:flex;align-items:center;gap:6px}
+.tbbtn{background:var(--bg2);border:1px solid var(--border);color:var(--txt2);font-family:var(--mono);font-size:.65rem;padding:5px 11px;border-radius:0;cursor:pointer;transition:all .1s}
+.tbbtn:hover{border-color:var(--txt2);color:var(--txt)}
+.tbbtn.active{border-color:var(--txt);color:var(--txt);background:var(--bg2)}
+.tbbtn.danger{border-color:#663322;color:var(--red)}
+.tbbtn.danger:hover{background:#221111}
+.spbtn{background:var(--bg2);border:1px solid var(--border);color:var(--txt2);font-family:var(--mono);font-size:.65rem;padding:4px 9px;border-radius:0;cursor:pointer;transition:all .1s}
+.spbtn.active{border-color:var(--txt);color:var(--yellow)}
+.divider{width:1px;height:20px;background:var(--border);margin:0 3px}
+
+.sim-body{flex:1;display:flex;overflow:hidden;position:relative}
+#simCanvas{flex:1;display:block;cursor:grab}
+#simCanvas.grabbing{cursor:grabbing}
+.zoom-hint{position:absolute;bottom:12px;left:50%;transform:translateX(-50%);font-size:.6rem;color:var(--txt3);pointer-events:none}
+
+#phase-ov{position:fixed;top:46px;left:50%;transform:translateX(-50%);background:#1a1a1a;border:1px solid #333;padding:6px 18px;font-size:.6rem;letter-spacing:.1em;color:#bbaa44;pointer-events:none;z-index:50;opacity:0;transition:opacity .3s}
+#phase-ov.show{opacity:1}
+::-webkit-scrollbar{width:3px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:#333}
+</style>
+</head>
+<body>
+
+<!-- ══ MENU ══ -->
+<div id="screen-menu">
+  <div class="menu-sidebar">
+    <div class="menu-logo">
+      <div class="prog">-- simulation orbitale --</div>
+      <h1>Syndrome de Kessler<br>simulation debris</h1>
+      <div class="ver">v3 | physique newtonienne RK4</div>
+    </div>
+
+    <div class="msec">
+      <div class="msec-t">// scenario</div>
+      <div class="pgrid">
+        <button class="pbtn" onclick="applyPreset('nominal')" id="pre-nominal"><span class="pn">LEO Nominal</span><span class="pd">15 sat · stable</span></button>
+        <button class="pbtn active" onclick="applyPreset('crowded')" id="pre-crowded"><span class="pn">LEO Peuplé</span><span class="pd">35 sat · risque moyen</span></button>
+        <button class="pbtn" onclick="applyPreset('cascade')" id="pre-cascade"><span class="pn">Cascade</span><span class="pd">60 sat · instable</span></button>
+        <button class="pbtn" onclick="applyPreset('kessler')" id="pre-kessler"><span class="pn">Kessler Max</span><span class="pd">100 sat · critique</span></button>
+      </div>
+    </div>
+
+    <div class="msec">
+      <div class="msec-t">// parametres orbitaux</div>
+      <div class="srow"><div class="shead"><span class="slabel">Nombre de satellites</span><span class="sval" id="lbl-nsats">35</span></div><input type="range" id="sl-nsats" min="5" max="120" value="35" oninput="sl('nsats','')"></div>
+      <div class="srow"><div class="shead"><span class="slabel">Altitude min</span><span><span class="sval" id="lbl-altmin">400</span><span class="sunit">km</span></span></div><input type="range" id="sl-altmin" min="200" max="1200" value="400" step="50" oninput="sl('altmin',' km')"></div>
+      <div class="srow"><div class="shead"><span class="slabel">Altitude max</span><span><span class="sval" id="lbl-altmax">1200</span><span class="sunit">km</span></span></div><input type="range" id="sl-altmax" min="400" max="2000" value="1200" step="50" oninput="sl('altmax',' km')"></div>
+      <div class="srow"><div class="shead"><span class="slabel">Plans orbitaux</span><span><span class="sval" id="lbl-incl">4</span><span class="sunit"> plans</span></span></div><input type="range" id="sl-incl" min="1" max="8" value="4" oninput="sl('incl',' plans')"></div>
+    </div>
+
+    <div class="msec">
+      <div class="msec-t">// declencheur</div>
+      <div class="srow"><div class="shead"><span class="slabel">Débris injectés</span><span class="sval" id="lbl-ndeb">8</span></div><input type="range" id="sl-ndeb" min="1" max="40" value="8" oninput="sl('ndeb','')"></div>
+      <div class="srow"><div class="shead"><span class="slabel">Délai injection</span><span><span class="sval" id="lbl-delay">5</span><span class="sunit"> s</span></span></div><input type="range" id="sl-delay" min="2" max="30" value="5" oninput="sl('delay',' s')"></div>
+      <div class="srow"><div class="shead"><span class="slabel">Fragments / collision</span><span class="sval" id="lbl-frag">12</span></div><input type="range" id="sl-frag" min="3" max="40" value="12" oninput="sl('frag','')"></div>
+    </div>
+
+    <div class="msec">
+      <div class="msec-t">// affichage</div>
+      <div class="togrow"><span class="toglabel">Vecteurs vitesse</span><label class="tog"><input type="checkbox" id="opt-vectors" checked><span class="tsl"></span></label></div>
+      <div class="togrow"><span class="toglabel">Traînées orbitales</span><label class="tog"><input type="checkbox" id="opt-trails" checked><span class="tsl"></span></label></div>
+      <div class="togrow"><span class="toglabel">Orbites de référence</span><label class="tog"><input type="checkbox" id="opt-orbits"><span class="tsl"></span></label></div>
+      <div class="togrow"><span class="toglabel">Grille de distance</span><label class="tog"><input type="checkbox" id="opt-grid"><span class="tsl"></span></label></div>
+      <div class="togrow"><span class="toglabel">Labels objets</span><label class="tog"><input type="checkbox" id="opt-labels"><span class="tsl"></span></label></div>
+    </div>
+
+    <div class="msec">
+      <div class="msec-t">// options speciales</div>
+      <div class="togrow">
+        <span class="toglabel" style="color:#6699cc">ISS (alt. 408km, bleue)</span>
+        <label class="tog"><input type="checkbox" id="opt-iss"><span class="tsl"></span></label>
+      </div>
+    </div>
+
+    <div class="mspacer"></div>
+    <div class="launch-area">
+      <button class="lbtn" onclick="launchSim()">[ lancer ]</button>
+      <div class="lsub">// integration RK4, dt adaptatif, physique newtonienne</div>
+    </div>
+  </div>
+
+  <div class="menu-preview">
+    <div class="pvhdr"><span class="pvt">apercu config</span><span class="pvs" id="pvstat">-- en attente --</span></div>
+    <canvas id="previewCanvas"></canvas>
+    <div class="pvleg">
+      <div class="legit"><div class="legdot" style="background:#3a9e5c"></div>satellite actif</div>
+      <div class="legit"><div class="legdot" style="background:#b06820"></div>debris</div>
+      <div class="legit"><div class="legdot" style="background:#4488ee"></div>ISS</div>
+      <div class="legit" style="margin-left:auto;color:#555;font-size:.58rem">-> vecteur vitesse</div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ SIM ══ -->
+<div id="screen-sim">
+  <div class="topbar">
+    <div class="tbrand">sim_kessler.html</div>
+    <div class="tstat"><span class="tslbl">satellites</span><span class="tsval green" id="ts-s">0</span></div>
+    <div class="tstat"><span class="tslbl">debris</span><span class="tsval orange" id="ts-d">0</span></div>
+    <div class="tstat"><span class="tslbl">collisions</span><span class="tsval red" id="ts-c">0</span></div>
+    <div class="tstat"><span class="tslbl">t simule</span><span class="tsval yellow" id="ts-t">0.0 s</span></div>
+    <div class="tspacer"></div>
+    <div class="tbctrl">
+      <button class="spbtn" onclick="setSpeed(.25)" id="sp-025">¼×</button>
+      <button class="spbtn" onclick="setSpeed(.5)"  id="sp-05">½×</button>
+      <button class="spbtn active" onclick="setSpeed(1)" id="sp-1">1×</button>
+      <button class="spbtn" onclick="setSpeed(2)"   id="sp-2">2×</button>
+      <button class="spbtn" onclick="setSpeed(5)"   id="sp-5">5×</button>
+      <div class="divider"></div>
+      <button class="tbbtn active" id="btn-vectors" onclick="togOpt('vectors')">Vecteurs</button>
+      <button class="tbbtn active" id="btn-trails"  onclick="togOpt('trails')">Traînées</button>
+      <button class="tbbtn"        id="btn-orbits"  onclick="togOpt('orbits')">Orbites</button>
+      <button class="tbbtn"        id="btn-grid"    onclick="togOpt('grid')">Grille</button>
+      <button class="tbbtn"        id="btn-labels"  onclick="togOpt('labels')">Labels</button>
+      <div class="divider"></div>
+      <button class="tbbtn" id="btn-pause" onclick="togglePause()">⏸ Pause</button>
+      <button class="tbbtn" onclick="manualInject()">+ Débris</button>
+      <button class="tbbtn danger" onclick="goMenu()">↩ Menu</button>
+    </div>
+  </div>
+
+  <div class="sim-body">
+    <canvas id="simCanvas"></canvas>
+    <div class="zoom-hint">scroll = zoom | clic+glisser = deplacer | double-clic = reset vue</div>
+  </div>
+</div>
+
+<div id="phase-ov"></div>
+
+<script>
+
+const n_debris = 22;
+
+
+
+// simulation syndrome de Kessler
+// auteur: moi
+// sources: wikipedia + cours meca celeste
+// TODO: ajouter trainee atmospherique + collisions debris-debris
+// NOTE: les unites sont en milliers de km (1 unit = 1000km)
+
+// ══════════════════════════════════════════════════════
+// PHYSICS CONSTANTS
+// 1 sim unit = 1000 km
+const SCALE   = 1000;          // km per unit
+const R_E_KM  = 6371;
+const R_E     = R_E_KM / SCALE; // ~6.371 units
+const MU      = 398600 / (SCALE**3); // GM in sim units³/s²
+
+// ══════════════════════════════════════════════════════
+// PREVIEW
+const pCv = document.getElementById('previewCanvas');
+const pCx = pCv.getContext('2d');
+
+function sl(id, unit){
+  document.getElementById('lbl-'+id).textContent = document.getElementById('sl-'+id).value;
+  drawPreview();
+}
+
+const PRESETS = {
+  nominal: {nsats:15,altMin:400,altMax:800, incl:2,ndeb:3, delay:8, frag:6 },
+  crowded: {nsats:35,altMin:400,altMax:1200,incl:4,ndeb:8, delay:5, frag:12},
+  cascade: {nsats:60,altMin:300,altMax:1400,incl:5,ndeb:15,delay:3, frag:18},
+  kessler: {nsats:100,altMin:200,altMax:1800,incl:8,ndeb:30,delay:2,frag:28},
+};
+
+function applyPreset(name){
+  const p=PRESETS[name];
+  const map={nsats:'',altMin:' km',altMax:' km',incl:' plans',ndeb:'',delay:' s',frag:''};
+  Object.entries(map).forEach(([k,u])=>{
+    document.getElementById('sl-'+k).value=p[k];
+    document.getElementById('lbl-'+k).textContent=p[k];
+  });
+  document.querySelectorAll('.pbtn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('pre-'+name).classList.add('active');
+  drawPreview();
+}
+
+function resizePv(){
+  const r=pCv.parentElement.getBoundingClientRect();
+  pCv.width=r.width; pCv.height=r.height-40-34;
+}
+
+function drawPreview(){
+  resizePv();
+  const W=pCv.width,H=pCv.height,cx=W/2,cy=H/2;
+  const ns=+document.getElementById('sl-nsats').value;
+  const aMin=+document.getElementById('sl-altmin').value;
+  const aMax=+document.getElementById('sl-altmax').value;
+  const inc=+document.getElementById('sl-incl').value;
+  const er=Math.min(W,H)*0.13;
+  const rMin=er+(aMin/R_E_KM)*er*0.26;
+  const rMax=er+(aMax/R_E_KM)*er*0.26;
+
+  pCx.clearRect(0,0,W,H);
+  pCx.fillStyle='#111111'; pCx.fillRect(0,0,W,H);
+
+  // orbit rings
+  for(let i=0;i<=4;i++){
+    const r=rMin+(rMax-rMin)*i/4;
+    pCx.beginPath(); pCx.arc(cx,cy,r,0,Math.PI*2);
+    const alt=Math.round(aMin+(aMax-aMin)*i/4);
+    pCx.strokeStyle='rgba(30,60,120,.22)'; pCx.lineWidth=.8; pCx.stroke();
+    pCx.fillStyle='rgba(40,70,130,.4)'; pCx.font='9px IBM Plex Mono';
+    pCx.fillText(alt+'km',cx+r+3,cy-2);
+  }
+
+  // Earth - flat
+  pCx.beginPath(); pCx.arc(cx,cy,er,0,Math.PI*2);
+  pCx.fillStyle='#1e2e44'; pCx.fill();
+  pCx.strokeStyle='#2a3a55'; pCx.lineWidth=1; pCx.stroke();
+
+  // satellites
+  for(let i=0;i<ns;i++){
+    const plane=i%inc;
+    const tilt=(plane/inc)*Math.PI*.85;
+    const angle=(i/Math.ceil(ns/inc))*Math.PI*2+plane*.65;
+    const r=rMin+((aMin+(aMax-aMin)*(i%7)/6)/R_E_KM)*er*.26;
+    const x=cx+Math.cos(angle+tilt)*r;
+    const y=cy+Math.sin(angle+tilt)*r*Math.cos(tilt*.25);
+    pCx.beginPath(); pCx.arc(x,y,2.2,0,Math.PI*2);
+    pCx.fillStyle='#3a9e5c'; pCx.fill();
+    const vx=-Math.sin(angle+tilt)*12, vy=Math.cos(angle+tilt)*12*Math.cos(tilt*.25);
+    arrowCtx(pCx,x,y,x+vx,y+vy,'rgba(58,158,92,.45)',1,3.5);
+  }
+
+  document.getElementById('pvstat').textContent=
+    `${ns} satellites | ${inc} plans | alt. ${aMin}-${aMax} km`;
+}
+
+window.addEventListener('resize', drawPreview);
+drawPreview();
+
+// ══════════════════════════════════════════════════════
+// ARROW UTIL
+function arrowCtx(ctx,x1,y1,x2,y2,col,lw,hs){
+  const dx=x2-x1,dy=y2-y1,len=Math.hypot(dx,dy);
+  if(len<4)return;
+  const a=Math.atan2(dy,dx);
+  hs=hs||5; lw=lw||1.2;
+  ctx.save();
+  ctx.strokeStyle=col; ctx.fillStyle=col; ctx.lineWidth=lw;
+  ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(x2,y2);
+  ctx.lineTo(x2-hs*Math.cos(a-.4),y2-hs*Math.sin(a-.4));
+  ctx.lineTo(x2-hs*Math.cos(a+.4),y2-hs*Math.sin(a+.4));
+  ctx.closePath(); ctx.fill();
+  ctx.restore();
+}
+
+// ══════════════════════════════════════════════════════
+// SIMULATION
+const sCv=document.getElementById('simCanvas');
+const sCx=sCv.getContext('2d');
+let SW,SH,SCX,SCY,earthPx=90;
+
+function resizeSim(){
+  SW=sCv.width=sCv.offsetWidth;
+  SH=sCv.height=sCv.offsetHeight;
+  SCX=SW/2; SCY=SH/2;
+  earthPx=Math.min(SW,SH)*0.105;
+}
+window.addEventListener('resize',resizeSim);
+
+// view
+let view={x:0,y:0,zoom:1};
+function wScale(){return view.zoom*earthPx/R_E}
+function w2s(wx,wy){const k=wScale();return{x:SCX+(wx-view.x)*k,y:SCY+(wy-view.y)*k}}
+function s2w(sx,sy){const k=wScale();return{x:(sx-SCX)/k+view.x,y:(sy-SCY)/k+view.y}}
+
+// state
+let objects=[],parts=[],simTime=0,collisions=0,fragCount=0,cascade=0;
+let paused=false,simSpeed=1,debInjected=false,phase='Nominal',oidN=0;
+let cfg={};
+let opts={vectors:true,trails:true,orbits:false,grid:false,labels:false};
+
+// ── LAUNCH ──
+function launchSim(){
+  cfg={
+    nsats:+document.getElementById('sl-nsats').value,
+    altMin:+document.getElementById('sl-altmin').value,
+    altMax:+document.getElementById('sl-altmax').value,
+    incl:+document.getElementById('sl-incl').value,
+    ndeb:+document.getElementById('sl-ndeb').value,
+    delay:+document.getElementById('sl-delay').value,
+    frag:+document.getElementById('sl-frag').value,
+    iss:document.getElementById('opt-iss').checked,
+  };
+  opts.vectors=document.getElementById('opt-vectors').checked;
+  opts.trails=document.getElementById('opt-trails').checked;
+  opts.orbits=document.getElementById('opt-orbits').checked;
+  opts.grid=document.getElementById('opt-grid').checked;
+  opts.labels=document.getElementById('opt-labels').checked;
+
+  document.getElementById('screen-menu').style.display='none';
+  document.getElementById('screen-sim').classList.add('active');
+  syncBtns();
+  resizeSim();
+  initSim();
+  requestAnimationFrame(loop);
+}
+
+function goMenu(){
+  cancelAnimationFrame(animId);
+  document.getElementById('screen-sim').classList.remove('active');
+  document.getElementById('screen-menu').style.display='flex';
+  drawPreview();
+}
+
+// ── INIT ──
+function initSim(){
+  objects=[]; parts=[]; simTime=0; collisions=0; fragCount=0; cascade=0;
+  paused=false; debInjected=false; phase='Nominal'; oidN=0;
+  view={x:0,y:0,zoom:1};
+
+  const aMin_u=(R_E_KM+cfg.altMin)/SCALE;
+  const aMax_u=(R_E_KM+cfg.altMax)/SCALE;
+
+  for(let i=0;i<cfg.nsats;i++){
+    const plane=i%cfg.incl;
+    const r=aMin_u+(aMax_u-aMin_u)*(i/cfg.nsats);
+    const ecc=0.005*plane;
+    const angle=(i/Math.ceil(cfg.nsats/cfg.incl))*Math.PI*2+plane*0.72+Math.random()*.1;
+    const dir=plane%2===0?1:-1;
+    const v=Math.sqrt(MU/r);
+    const vpert=v*(1+ecc*Math.cos(angle));
+    const x=Math.cos(angle)*r, y=Math.sin(angle)*r;
+    const vx=-Math.sin(angle)*vpert*dir, vy=Math.cos(angle)*vpert*dir;
+    objects.push({type:'sat',id:oidN++,x,y,vx,vy,alive:true,trail:[],mass:500+Math.random()*2000,sz:3.5,isISS:false});
+  }
+
+  // ISS - altitude reelle 408km, orbite prograde, plus grande
+  if(cfg.iss){
+    const rISS=(R_E_KM+408)/SCALE;
+    const angleISS=Math.random()*Math.PI*2;
+    const vISS=Math.sqrt(MU/rISS);
+    const xISS=Math.cos(angleISS)*rISS, yISS=Math.sin(angleISS)*rISS;
+    objects.push({
+      type:'sat',id:oidN++,
+      x:xISS,y:yISS,
+      vx:-Math.sin(angleISS)*vISS, vy:Math.cos(angleISS)*vISS,
+      alive:true,trail:[],mass:420000,sz:6,isISS:true
+    });
+  }
+
+  updateHUD();
+}
+
+// ── RK4 ──
+function deriv(o){
+  const r2=o.x*o.x+o.y*o.y, r=Math.sqrt(r2), a=-MU/(r2*r);
+  return{vx:o.vx,vy:o.vy,ax:a*o.x,ay:a*o.y};
+}
+function rk4(o,dt){
+  const k1=deriv(o);
+  const o2={x:o.x+k1.vx*dt/2,y:o.y+k1.vy*dt/2,vx:o.vx+k1.ax*dt/2,vy:o.vy+k1.ay*dt/2};
+  const k2=deriv(o2);
+  const o3={x:o.x+k2.vx*dt/2,y:o.y+k2.vy*dt/2,vx:o.vx+k2.ax*dt/2,vy:o.vy+k2.ay*dt/2};
+  const k3=deriv(o3);
+  const o4={x:o.x+k3.vx*dt,y:o.y+k3.vy*dt,vx:o.vx+k3.ax*dt,vy:o.vy+k3.ay*dt};
+  const k4=deriv(o4);
+  return{
+    x:o.x+dt/6*(k1.vx+2*k2.vx+2*k3.vx+k4.vx),
+    y:o.y+dt/6*(k1.vy+2*k2.vy+2*k3.vy+k4.vy),
+    vx:o.vx+dt/6*(k1.ax+2*k2.ax+2*k3.ax+k4.ax),
+    vy:o.vy+dt/6*(k1.ay+2*k2.ay+2*k3.ay+k4.ay),
+  };
+}
+
+// ── DEBRIS INJECT ──
+function injectDebris(count,targeted){
+  const aMin_u=(R_E_KM+cfg.altMin)/SCALE;
+  const aMax_u=(R_E_KM+cfg.altMax)/SCALE;
+  const alive=objects.filter(o=>o.type==='sat'&&o.alive);
+  for(let i=0;i<count;i++){
+    let r,angle;
+    if(targeted&&alive.length>0){
+      const tgt=alive[Math.floor(Math.random()*alive.length)];
+      r=Math.hypot(tgt.x,tgt.y)*(0.95+Math.random()*.1);
+      angle=Math.atan2(tgt.y,tgt.x)+(Math.random()-.5)*.35;
+    } else {
+      r=aMin_u+Math.random()*(aMax_u-aMin_u);
+      angle=Math.random()*Math.PI*2;
+    }
+    const v0=Math.sqrt(MU/r);
+    const dir=Math.random()<.45?-1:1; // retrograde more dangerous
+    const pert=.5+Math.random()*.9;
+    const x=Math.cos(angle)*r, y=Math.sin(angle)*r;
+    const vx=-Math.sin(angle)*v0*dir*pert+(Math.random()-.5)*v0*.35;
+    const vy= Math.cos(angle)*v0*dir*pert+(Math.random()-.5)*v0*.35;
+    objects.push({type:'deb',id:oidN++,x,y,vx,vy,alive:true,trail:[],mass:.05+Math.random()*20,sz:1.4+Math.random()*1.8});
+    fragCount++;
+  }
+}
+
+function manualInject(){
+  injectDebris(n_debris,true); updateHUD();
+}
+
+// ── COLLISIONS ──
+const THRESH_SS=0.013, THRESH_SD=0.01;
+function handleCollisions(){
+  const alive=objects.filter(o=>o.alive);
+  const n=alive.length;
+  for(let i=0;i<n;i++){
+    for(let j=i+1;j<n;j++){
+      const a=alive[i],b=alive[j];
+      if(a.type==='deb'&&b.type==='deb') continue;
+      const dx=a.x-b.x, dy=a.y-b.y;
+      const dist=Math.sqrt(dx*dx+dy*dy);
+      const thr=(a.type==='sat'&&b.type==='sat')?THRESH_SS:THRESH_SD;
+      if(dist<thr) doCollide(a,b);
+    }
+  }
+}
+
+function doCollide(a,b){
+  if(!a.alive||!b.alive) return;
+  a.alive=false; b.alive=false; collisions++;
+  const mx=(a.x+b.x)/2, my=(a.y+b.y)/2;
+  const dv=Math.hypot(a.vx-b.vx,a.vy-b.vy)*SCALE;
+  const isSS=a.type==='sat'&&b.type==='sat';
+  const nf=cfg.frag+Math.floor(Math.random()*cfg.frag*.5)+(isSS?8:0);
+  cascade=Math.min(1,cascade+(isSS?.18:.08));
+
+  for(let k=0;k<nf;k++){
+    const ang=Math.random()*Math.PI*2;
+    const r=Math.hypot(mx,my);
+    const vcirc=Math.sqrt(MU/r);
+    const sp=(.05+Math.random()*.45)*vcirc;
+    const vxf=(a.vx+b.vx)/2+Math.cos(ang)*sp;
+    const vyf=(a.vy+b.vy)/2+Math.sin(ang)*sp;
+    objects.push({type:'deb',id:oidN++,x:mx+(Math.random()-.5)*.01,y:my+(Math.random()-.5)*.01,
+      vx:vxf,vy:vyf,alive:true,trail:[],mass:.01+Math.random()*3,sz:.9+Math.random()*2.2});
+    fragCount++;
+  }
+
+  spawnExp(mx,my,isSS?28:14);
+  updateHUD();
+}
+
+// ── EXPLOSION PARTICLES ──
+function spawnExp(wx,wy,n){
+  for(let i=0;i<n;i++){
+    const a=Math.random()*Math.PI*2, sp=.015+Math.random()*.05;
+    parts.push({x:wx,y:wy,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp,
+      life:1,decay:.02+Math.random()*.035,sz:1.2+Math.random()*1.8,
+      col:Math.random()<.5?'#993322':'#887722'});
+  }
+}
+
+// ══════════════════════════════════════════════════════
+// DRAW
+function drawGrid(){
+  if(!opts.grid) return;
+  const step_w=(R_E_KM+500)/SCALE;
+  const ws=wScale(), step_px=step_w*ws;
+  if(step_px<12) return;
+  const tl=s2w(0,0),br=s2w(SW,SH);
+  const x0=Math.floor(tl.x/step_w)*step_w, y0=Math.floor(tl.y/step_w)*step_w;
+  sCx.save();
+  sCx.strokeStyle='rgba(25,55,105,.28)'; sCx.lineWidth=.5;
+  for(let wx=x0;wx<br.x;wx+=step_w){const sx=w2s(wx,0).x;sCx.beginPath();sCx.moveTo(sx,0);sCx.lineTo(sx,SH);sCx.stroke();}
+  for(let wy=y0;wy<br.y;wy+=step_w){const sy=w2s(0,wy).y;sCx.beginPath();sCx.moveTo(0,sy);sCx.lineTo(SW,sy);sCx.stroke();}
+  sCx.restore();
+  // scale bar
+  const barKm=Math.round(step_w*SCALE/100)*100;
+  sCx.save(); sCx.strokeStyle='rgba(50,90,160,.5)'; sCx.lineWidth=1;
+  sCx.beginPath(); sCx.moveTo(18,SH-20); sCx.lineTo(18+step_px,SH-20); sCx.stroke();
+  sCx.beginPath(); sCx.moveTo(18,SH-16); sCx.lineTo(18,SH-24); sCx.stroke();
+  sCx.beginPath(); sCx.moveTo(18+step_px,SH-16); sCx.lineTo(18+step_px,SH-24); sCx.stroke();
+  sCx.fillStyle='rgba(60,100,160,.65)'; sCx.font='9px IBM Plex Mono';
+  sCx.fillText(barKm+' km',22,SH-26); sCx.restore();
+}
+
+function drawEarth(){
+  const {x:ex,y:ey}=w2s(0,0), er=earthPx*view.zoom;
+  // simple flat earth, no fancy glow
+  const eg=sCx.createRadialGradient(ex-er*.2,ey-er*.2,0,ex,ey,er);
+  eg.addColorStop(0,'#2a3a5a');
+  eg.addColorStop(.6,'#16253a');
+  eg.addColorStop(1,'#0a1020');
+  sCx.beginPath(); sCx.arc(ex,ey,er,0,Math.PI*2); sCx.fillStyle=eg; sCx.fill();
+  sCx.beginPath(); sCx.arc(ex,ey,er,0,Math.PI*2);
+  sCx.strokeStyle='#2a3a55'; sCx.lineWidth=1; sCx.stroke();
+  if(er>30){
+    sCx.save(); sCx.fillStyle='#3a5070';
+    sCx.font=`${Math.max(8,er*.13)}px Courier New`;
+    sCx.textAlign='center'; sCx.textBaseline='middle';
+    sCx.fillText('terre',ex,ey); sCx.restore();
+  }
+}
+
+function drawOrbits(){
+  if(!opts.orbits) return;
+  const aMin_u=(R_E_KM+cfg.altMin)/SCALE, aMax_u=(R_E_KM+cfg.altMax)/SCALE;
+  const {x:ex,y:ey}=w2s(0,0); const ws=wScale();
+  for(let k=0;k<=4;k++){
+    const r=aMin_u+(aMax_u-aMin_u)*k/4;
+    sCx.beginPath(); sCx.arc(ex,ey,r*ws,0,Math.PI*2);
+    sCx.strokeStyle='rgba(28,58,115,.22)'; sCx.lineWidth=.7; sCx.stroke();
+    const alt=Math.round((r*SCALE-R_E_KM));
+    sCx.fillStyle='rgba(35,65,130,.45)'; sCx.font='9px IBM Plex Mono';
+    sCx.fillText(alt+' km',ex+r*ws+3,ey-3);
+  }
+}
+
+function drawObjects(){
+  const ws=wScale();
+  for(const o of objects){
+    if(!o.alive) continue;
+    const {x:sx,y:sy}=w2s(o.x,o.y);
+    if(sx<-60||sx>SW+60||sy<-60||sy>SH+60) continue;
+    const isSat=o.type==='sat';
+    const isISS=o.isISS||false;
+    const col = isISS ? '#4488ee' : (isSat ? '#3aaa60' : '#cc7730');
+
+    // trail
+    if(opts.trails&&o.trail.length>1){
+      sCx.beginPath(); sCx.moveTo(o.trail[0].x,o.trail[0].y);
+      for(let t=1;t<o.trail.length;t++) sCx.lineTo(o.trail[t].x,o.trail[t].y);
+      sCx.strokeStyle=isISS?'rgba(68,136,238,.2)':(isSat?'rgba(58,170,96,.15)':'rgba(204,119,48,.12)');
+      sCx.lineWidth=isSat?1:.7; sCx.stroke();
+    }
+
+    // dot
+    sCx.beginPath(); sCx.arc(sx,sy,o.sz*(isSat?1:.75),0,Math.PI*2);
+    sCx.fillStyle=col; sCx.fill();
+
+    // satellite cross
+    if(isSat&&o.sz*ws>.8){
+      const ang=Math.atan2(o.vy,o.vx)+Math.PI/2;
+      const arm=o.sz*(isISS?2.5:2);
+      sCx.save(); sCx.translate(sx,sy); sCx.rotate(ang);
+      sCx.strokeStyle=col; sCx.lineWidth=isISS?2:1;
+      sCx.beginPath(); sCx.moveTo(-arm,0); sCx.lineTo(arm,0); sCx.stroke();
+      sCx.beginPath(); sCx.moveTo(0,-arm*.4); sCx.lineTo(0,arm*.4); sCx.stroke();
+      sCx.restore();
+    }
+
+    // ISS label always visible
+    if(isISS){
+      sCx.fillStyle='rgba(68,136,238,.7)'; sCx.font='bold 10px Courier New';
+      sCx.fillText('ISS',sx+o.sz+3,sy-o.sz-1);
+    }
+
+    // velocity vector
+    if(opts.vectors){
+      const vs=Math.hypot(o.vx,o.vy);
+      const vLen=vs*.22;
+      const ex2=o.x+(o.vx/vs)*vLen, ey2=o.y+(o.vy/vs)*vLen;
+      const {x:ex2s,y:ey2s}=w2s(ex2,ey2);
+      const vpx=Math.hypot(ex2s-sx,ey2s-sy);
+      if(vpx>7){
+        const colV=isISS?'rgba(68,136,238,.65)':(isSat?'rgba(58,170,96,.6)':'rgba(204,119,48,.55)');
+        arrowCtx(sCx,sx,sy,ex2s,ey2s,colV,isISS?1.5:(isSat?1.2:1),isISS?6:(isSat?5:4));
+        if(view.zoom>1.8&&isSat&&!isISS){
+          sCx.fillStyle='rgba(58,170,96,.45)'; sCx.font='8px Courier New';
+          sCx.fillText((vs*SCALE).toFixed(2)+' km/s',ex2s+4,ey2s-2);
+        }
+      }
+    }
+
+    if(opts.labels&&!isISS){
+      sCx.fillStyle=isSat?'rgba(58,170,96,.4)':'rgba(204,119,48,.4)';
+      sCx.font='8px Courier New';
+      sCx.fillText((isSat?'S':'D')+o.id,sx+o.sz+2,sy-o.sz-1);
+    }
+  }
+}
+
+function drawParts(){
+  for(const p of parts){
+    if(p.life<=0) continue;
+    const {x:sx,y:sy}=w2s(p.x,p.y);
+    sCx.globalAlpha=p.life;
+    sCx.beginPath(); sCx.arc(sx,sy,p.sz*p.life,0,Math.PI*2);
+    sCx.fillStyle=p.col; sCx.fill();
+  }
+  sCx.globalAlpha=1;
+}
+
+// ══════════════════════════════════════════════════════
+// MAIN LOOP
+let animId, lastTs=0;
+function loop(ts){
+  animId=requestAnimationFrame(loop);
+  const rawDt=Math.min((ts-lastTs)/1000,.05); lastTs=ts;
+  if(!rawDt) return;
+  const dt=paused?0:rawDt*simSpeed;
+  simTime+=dt;
+
+  if(!paused){
+    // inject debris
+    if(!debInjected&&simTime>=cfg.delay){
+      debInjected=true;
+      injectDebris(cfg.ndeb,true);
+      showPhase(`injection debris: ${cfg.ndeb} objets`);
+    }
+
+    // physics substeps
+    const sub=3, sdt=dt/sub;
+    for(let s=0;s<sub;s++){
+      for(const o of objects){
+        if(!o.alive) continue;
+        const n=rk4(o,sdt);
+        o.x=n.x; o.y=n.y; o.vx=n.vx; o.vy=n.vy;
+        const r=Math.hypot(o.x,o.y);
+        if(r<R_E*1.015||r>R_E*12) o.alive=false;
+      }
+      handleCollisions();
+    }
+
+    // trails
+    for(const o of objects){
+      if(!o.alive) continue;
+      if(opts.trails){
+        const {x:sx,y:sy}=w2s(o.x,o.y);
+        o.trail.push({x:sx,y:sy});
+        const mx=o.type==='sat'?55:25;
+        if(o.trail.length>mx) o.trail.shift();
+      } else o.trail=[];
+    }
+
+    // particles
+    for(const p of parts){p.x+=p.vx*dt;p.y+=p.vy*dt;p.life-=p.decay;}
+    parts=parts.filter(p=>p.life>0);
+
+    // phase
+    if(cascade>.8) setPhase('!! syndrome de kessler !!');
+    else if(cascade>.5) setPhase('cascade critique');
+    else if(cascade>.25) setPhase('cascade en cours');
+    else if(debInjected) setPhase('debris injectes');
+    else setPhase('nominal');
+  }
+
+  // DRAW
+  sCx.fillStyle='#111111'; sCx.fillRect(0,0,SW,SH);
+  drawGrid(); drawOrbits(); drawEarth(); drawObjects(); drawParts();
+  updateHUD();
+}
+
+// ── HUD ──
+function updateHUD(){
+  const sats=objects.filter(o=>o.type==='sat'&&o.alive).length;
+  const debs=objects.filter(o=>o.type==='deb'&&o.alive).length;
+  document.getElementById('ts-s').textContent=sats;
+  document.getElementById('ts-d').textContent=debs;
+  document.getElementById('ts-c').textContent=collisions;
+  document.getElementById('ts-t').textContent=simTime.toFixed(1)+' s';
+}
+
+function setPhase(p){phase=p;}
+
+let phaseTO;
+function showPhase(txt){
+  const el=document.getElementById('phase-ov');
+  el.textContent=txt; el.classList.add('show');
+  clearTimeout(phaseTO); phaseTO=setTimeout(()=>el.classList.remove('show'),3200);
+}
+
+// ── CONTROLS ──
+function togglePause(){
+  paused=!paused;
+  const b=document.getElementById('btn-pause');
+  b.textContent=paused?'▶ Reprendre':'⏸ Pause';
+  b.classList.toggle('active',paused);
+}
+
+function setSpeed(s){
+  simSpeed=s;
+  ['025','05','1','2','5'].forEach(k=>document.getElementById('sp-'+k).classList.remove('active'));
+  const map={.25:'025',.5:'05',1:'1',2:'2',5:'5'};
+  document.getElementById('sp-'+map[s]).classList.add('active');
+}
+
+function togOpt(name){
+  opts[name]=!opts[name];
+  document.getElementById('btn-'+name).classList.toggle('active',opts[name]);
+  if(name==='trails'&&!opts.trails) objects.forEach(o=>o.trail=[]);
+}
+
+function syncBtns(){
+  ['vectors','trails','orbits','grid','labels'].forEach(n=>{
+    const b=document.getElementById('btn-'+n);
+    if(b) b.classList.toggle('active',opts[n]);
+  });
+}
+
+// ── ZOOM/PAN ──
+sCv.addEventListener('wheel',e=>{
+  e.preventDefault();
+  const f=e.deltaY>0?.88:1.14;
+  const wb=s2w(e.offsetX,e.offsetY);
+  view.zoom=Math.max(.18,Math.min(22,view.zoom*f));
+  const wa=s2w(e.offsetX,e.offsetY);
+  view.x+=wb.x-wa.x; view.y+=wb.y-wa.y;
+},{passive:false});
+
+let drag=false,ds={},vs={};
+sCv.addEventListener('mousedown',e=>{drag=true;ds={x:e.clientX,y:e.clientY};vs={x:view.x,y:view.y};sCv.classList.add('grabbing')});
+window.addEventListener('mousemove',e=>{
+  if(!drag) return;
+  const k=wScale();
+  view.x=vs.x-(e.clientX-ds.x)/k;
+  view.y=vs.y-(e.clientY-ds.y)/k;
+});
+window.addEventListener('mouseup',()=>{drag=false;sCv.classList.remove('grabbing')});
+sCv.addEventListener('dblclick',()=>{view.x=0;view.y=0;view.zoom=1});
+
+// touch pinch
+let lastPD=null;
+sCv.addEventListener('touchstart',e=>{if(e.touches.length===2)lastPD=null;},{passive:true});
+sCv.addEventListener('touchmove',e=>{
+  if(e.touches.length===2){
+    e.preventDefault();
+    const d=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);
+    if(lastPD) view.zoom=Math.max(.18,Math.min(22,view.zoom*(d/lastPD)));
+    lastPD=d;
+  }
+},{passive:false});
+</script>
+</body>
+</html>
